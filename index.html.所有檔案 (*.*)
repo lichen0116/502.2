@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班級股市模擬器 - 智慧資產重組系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: #0b0f19;
+            color: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(71, 85, 105, 1);
+        }
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.2s ease-in-out;
+        }
+        .glass-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between custom-scrollbar bg-slate-950 text-slate-100">
+
+    <header class="sticky top-0 z-30 glass-panel border-b border-slate-800 px-4 py-3 shadow-xl">
+        <div class="max-w-7xl mx-auto flex flex-wrap justify-between items-center gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-xl flex items-center justify-center">
+                    <i class="fa-solid font-bold fa-chart-line text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400 bg-clip-text text-transparent">
+                        班級股市模擬器
+                    </h1>
+                    <p class="text-xs text-slate-400">資產重組與個股投資體驗 (基準每股 $100)</p>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center flex-wrap gap-2 text-xs">
+                <!-- User Profile Badge -->
+                <div id="userBadge" class="flex items-center gap-2 px-3 py-1.5 bg-slate-800/80 border border-slate-700 rounded-xl">
+                    <span id="userAvatar" class="w-6 h-6 rounded-full bg-indigo-500/30 text-indigo-300 flex items-center justify-center font-bold text-[11px]">
+                        ?
+                    </span>
+                    <span id="userName" class="font-semibold text-slate-200">未登入</span>
+                </div>
+
+                <!-- Teacher-Only Controls -->
+                <div id="teacherControls" class="hidden flex items-center gap-2">
+                    <button id="marketToggleBtn" onclick="toggleMarketStatus()" class="px-3 py-1.5 bg-emerald-600/80 hover:bg-emerald-500 text-white rounded-xl font-medium shadow-md transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-lock-open text-emerald-200"></i> <span id="marketStatusText">🟢 股市交易：開盤中</span>
+                    </button>
+                    <button onclick="openAdjustModal()" class="px-3 py-1.5 bg-amber-600/80 hover:bg-amber-500 text-white rounded-xl font-medium shadow-md transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-bolt text-amber-200"></i> ⚡ 課堂表現加減分
+                    </button>
+                    <button onclick="openPasswordModal()" class="px-3 py-1.5 bg-purple-600/80 hover:bg-purple-500 text-white rounded-xl font-medium shadow-md transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-key text-purple-200"></i> 🔑 密碼管理
+                    </button>
+                    <button onclick="triggerAIMarketNews()" class="px-3 py-1.5 bg-pink-600/80 hover:bg-pink-500 text-white rounded-xl font-medium shadow-md transition flex items-center gap-1.5">
+                        <i class="fa-solid fa-robot text-pink-200"></i> 🤖 AI市場快訊
+                    </button>
+                </div>
+
+                <!-- History Log Button -->
+                <button onclick="openHistoryModal()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl font-medium transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-clock-rotate-left text-slate-400"></i> 📜 歷史紀錄
+                </button>
+
+                <!-- Switch Account / Logout Button -->
+                <button onclick="openLoginModal()" class="px-3 py-1.5 bg-indigo-600/80 hover:bg-indigo-500 text-white rounded-xl font-medium shadow-md transition flex items-center gap-1.5">
+                    <i class="fa-solid fa-right-from-bracket"></i> 切換帳號
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto w-full px-4 py-6 flex-1 space-y-6">
+        
+        <!-- Rules Banner -->
+        <section class="glass-panel p-4 rounded-2xl border border-indigo-500/20 shadow-lg">
+            <h2 class="text-xs font-bold text-indigo-400 tracking-wider uppercase mb-2 flex items-center gap-1.5">
+                <i class="fa-solid fa-circle-info"></i> 班級股市個人交易與資產重組規則
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                <div class="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800">
+                    <span class="font-bold text-slate-200 block mb-0.5">1. 起始資產與現金</span>
+                    <p class="text-slate-400">每位同學初始持有自家公司股票 <strong class="text-emerald-400">15 股</strong> (每股 $100) 及 <strong class="text-amber-400">$100 現金</strong>。</p>
+                </div>
+                <div class="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800">
+                    <span class="font-bold text-slate-200 block mb-0.5">2. 自家經營權保障</span>
+                    <p class="text-slate-400">自家公司股票為經營核心，<strong class="text-rose-400">最少需保留 12 股</strong> (個人最多可賣出 3 股變現)。</p>
+                </div>
+                <div class="p-2.5 bg-slate-900/60 rounded-xl border border-slate-800">
+                    <span class="font-bold text-slate-200 block mb-0.5">3. 自由資產重組</span>
+                    <p class="text-slate-400">運用賣出自家股票所得現金，自由買進全班其他 4 組股票，進行分散風險與投資配置。</p>
+                </div>
+            </div>
+        </section>
+
+        <div id="studentDashboard" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            <!-- Left Side: Student Personal Asset Card -->
+            <div class="lg:col-span-4 space-y-4">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <h3 class="font-bold text-slate-200 flex items-center gap-2 text-sm">
+                            <i class="fa-solid fa-wallet text-indigo-400"></i> 個人資產總額統計
+                        </h3>
+                        <button onclick="triggerAIPortfolioAdvisor()" class="text-xs px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg font-medium shadow transition flex items-center gap-1">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> AI 理財診斷
+                        </button>
+                    </div>
+
+                    <!-- Total Net Worth Highlight -->
+                    <div class="p-4 bg-slate-900/80 rounded-xl border border-slate-800 text-center space-y-1">
+                        <span class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">目前總資產淨值 (Net Worth)</span>
+                        <div id="netWorthDisplay" class="text-3xl font-extrabold text-amber-300">
+                            $1,600 <span class="text-sm font-normal text-slate-400">班幣</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 pt-2 text-xs border-t border-slate-800/80">
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">現金:</span>
+                                <span id="cashDisplay" class="font-bold text-emerald-400">$100</span>
+                            </div>
+                            <div>
+                                <span class="text-slate-400 block text-[10px]">股票市值:</span>
+                                <span id="stockValueDisplay" class="font-bold text-indigo-400">$1,500</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Asset Donut Chart -->
+                    <div class="relative h-48 w-full flex items-center justify-center">
+                        <canvas id="assetChart"></canvas>
+                    </div>
+
+                    <!-- Holdings List Breakdown -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center text-xs text-slate-400 font-semibold px-1">
+                            <span>持股明細</span>
+                            <span id="homeStockRuleTag" class="text-[10px] px-2 py-0.5 bg-amber-500/10 text-amber-300 border border-amber-500/20 rounded-full">
+                                自家保留 15 股 (下限 12 股)
+                            </span>
+                        </div>
+                        <div id="holdingsList" class="space-y-1.5 text-xs max-h-48 overflow-y-auto custom-scrollbar pr-1">
+                            <!-- Holdings populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Student Trading Order Center -->
+            <div class="lg:col-span-8 space-y-4">
+                <div class="glass-panel p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+                    <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                        <div>
+                            <h3 class="font-bold text-slate-200 flex items-center gap-2 text-sm">
+                                <i class="fa-solid fa-arrow-right-arrow-left text-emerald-400"></i> 股票買賣下單中心
+                            </h3>
+                            <p class="text-[11px] text-slate-400">點擊股票卡片可進行買進或賣出，並隨時查看個股 AI 研報</p>
+                        </div>
+                        <div class="text-xs bg-slate-800/80 px-3 py-1 rounded-lg border border-slate-700 text-slate-300">
+                            各組每股均價: <span class="text-amber-300 font-bold">$100 起</span>
+                        </div>
+                    </div>
+
+                    <!-- Stocks Grid -->
+                    <div id="stocksGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Rendered dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="teacherDashboard" class="hidden space-y-4">
+            <div class="glass-panel p-6 rounded-2xl border border-purple-500/20 shadow-2xl space-y-5">
+                <div class="flex flex-wrap justify-between items-center gap-3 border-b border-slate-800 pb-4">
+                    <div>
+                        <h3 class="text-base font-bold text-purple-300 flex items-center gap-2">
+                            <i class="fa-solid fa-trophy text-amber-400"></i> 全班學生總資產排行榜與數據統計看板
+                        </h3>
+                        <p class="text-xs text-slate-400">即時監控 23 位學生現金、持股與總資產狀況 (僅班導師可見)</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-slate-400">即時更新中</span>
+                        <button onclick="renderTeacherLeaderboard()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-medium border border-slate-700 transition">
+                            <i class="fa-solid fa-rotate-right"></i> 刷新數據
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Class Leaderboard Table -->
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse text-xs">
+                        <thead>
+                            <tr class="border-b border-slate-800 text-slate-400 uppercase font-semibold text-[11px]">
+                                <th class="py-3 px-3">名次</th>
+                                <th class="py-3 px-3">學生姓名/座號</th>
+                                <th class="py-3 px-3">所屬公司</th>
+                                <th class="py-3 px-3 text-right">現金餘額</th>
+                                <th class="py-3 px-3 text-right">股票市值</th>
+                                <th class="py-3 px-3 text-right">總資產淨值</th>
+                                <th class="py-3 px-3">持股細節與配置</th>
+                            </tr>
+                        </thead>
+                        <tbody id="leaderboardBody" class="divide-y divide-slate-800/60 font-medium">
+                            <!-- Leaderboard populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Notification Toast Modal (Replaces browser alert) -->
+    <div id="noticeModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-sm w-full p-5 rounded-2xl border border-amber-500/30 shadow-2xl space-y-4 text-center">
+            <div id="noticeIcon" class="w-12 h-12 mx-auto rounded-2xl flex items-center justify-center text-xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                <i class="fa-solid fa-circle-exclamation"></i>
+            </div>
+            <div class="space-y-1">
+                <h4 id="noticeTitle" class="font-bold text-slate-100 text-sm">交易提示</h4>
+                <p id="noticeMessage" class="text-xs text-slate-300 leading-relaxed">提示訊息內容</p>
+            </div>
+            <button onclick="closeModal('noticeModal')" class="w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold border border-slate-700 transition">
+                確定瞭解
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal 1: Login Modal -->
+    <div id="loginModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-5">
+            <div class="text-center space-y-2">
+                <div class="w-12 h-12 mx-auto bg-indigo-600/20 text-indigo-400 rounded-2xl flex items-center justify-center border border-indigo-500/30">
+                    <i class="fa-solid fa-user-lock text-2xl"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-100">學生與班導師登入</h3>
+                <p class="text-xs text-slate-400">請選擇個人座號或導師身分，並輸入密碼驗證</p>
+            </div>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">1. 選擇身份 / 座號</label>
+                    <select id="loginUserSelect" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 outline-none">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 mb-1">2. 輸入密碼</label>
+                    <div class="relative">
+                        <input type="password" id="loginPasswordInput" placeholder="請輸入個人密碼" class="w-full px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-xs focus:ring-2 focus:ring-indigo-500 outline-none pr-10">
+                        <button type="button" onclick="togglePasswordVisibility('loginPasswordInput', 'pwdToggleIcon')" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-200 text-xs">
+                            <i id="pwdToggleIcon" class="fa-solid fa-eye"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loginErrorMsg" class="hidden p-2.5 bg-rose-950/60 border border-rose-800/80 rounded-xl text-rose-300 text-xs text-center font-medium">
+                    密碼錯誤，請重新輸入！
+                </div>
+
+                <button onclick="handleLogin()" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/30 transition">
+                    安全登入系統
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 2: Teacher Adjust Modal -->
+    <div id="adjustModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-lg w-full p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-amber-300 flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-bolt"></i> ⚡ 課堂表現與事件加減分控制台
+                </h3>
+                <button onclick="closeModal('adjustModal')" class="text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">1. 選擇影響的組別公司</label>
+                    <select id="adjustStockSelect" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-xs outline-none">
+                        <option value="group1">一組科技</option>
+                        <option value="group2">二組餐飲</option>
+                        <option value="group3">三組娛樂</option>
+                        <option value="group4">四組金融</option>
+                        <option value="group5">五組百貨</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-bold text-slate-300 mb-1">2. 快速選擇課堂事件項目 (數值均 $\ge 10$ 元)</label>
+                    <div id="presetContainer" class="grid grid-cols-2 gap-2 max-h-52 overflow-y-auto custom-scrollbar pr-1">
+                        <!-- Preset buttons dynamically injected -->
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">自訂股價增減金額 ($)</label>
+                        <input type="number" id="adjustDeltaInput" placeholder="例如: -10 或 15" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-xs outline-none">
+                    </div>
+                    <div>
+                        <label class="block font-bold text-slate-300 mb-1">事件或扣分事由說明</label>
+                        <input type="text" id="adjustReasonInput" placeholder="例如：課堂秩序混亂扣分" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-xs outline-none">
+                    </div>
+                </div>
+
+                <div class="flex gap-2 pt-2">
+                    <button onclick="applyStockAdjustment()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-500 text-white rounded-xl font-bold shadow-lg transition">
+                        確認發布加減分事件
+                    </button>
+                    <button onclick="closeModal('adjustModal')" class="py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl font-medium transition">
+                        取消
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 3: Password Management Modal -->
+    <div id="passwordModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-md w-full p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-purple-300 flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-key"></i> 🔑 密碼管理中心 (導師專用)
+                </h3>
+                <button onclick="closeModal('passwordModal')" class="text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">選擇要修改密碼的帳號</label>
+                    <select id="pwdUserSelect" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-xs">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-300 mb-1">輸入新密碼</label>
+                    <input type="text" id="newPasswordInput" placeholder="輸入新密碼" class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-slate-200 text-xs">
+                </div>
+
+                <button onclick="saveUserPassword()" class="w-full py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-lg transition">
+                    儲存新密碼設定
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 4: History Log Modal -->
+    <div id="historyModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-2xl w-full p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 class="font-bold text-slate-200 flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-clock-rotate-left text-indigo-400"></i> 📜 班級事件與加減分歷史紀錄
+                </h3>
+                <button onclick="closeModal('historyModal')" class="text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <div class="max-h-80 overflow-y-auto custom-scrollbar pr-1">
+                <table class="w-full text-left text-xs border-collapse">
+                    <thead>
+                        <tr class="border-b border-slate-800 text-slate-400 font-semibold">
+                            <th class="py-2.5 px-2">發布時間</th>
+                            <th class="py-2.5 px-2">受影響公司</th>
+                            <th class="py-2.5 px-2">事件與事由項目</th>
+                            <th class="py-2.5 px-2 text-right">金額變動</th>
+                            <th class="py-2.5 px-2 text-right">調整後最新股價</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody" class="divide-y divide-slate-800/60 font-medium">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal 5: AI Modal -->
+    <div id="aiModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="glass-panel max-w-lg w-full p-6 rounded-2xl border border-slate-800 shadow-2xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+                <h3 id="aiModalTitle" class="font-bold text-indigo-300 flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i> Gemini AI 智能診斷分析
+                </h3>
+                <button onclick="closeModal('aiModal')" class="text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-xmark text-base"></i>
+                </button>
+            </div>
+
+            <div id="aiModalContent" class="text-xs text-slate-300 space-y-3 leading-relaxed min-h-[120px] flex flex-col justify-center">
+                <!-- AI Output Content -->
+            </div>
+
+            <div id="aiAudioContainer" class="hidden pt-2 border-t border-slate-800 flex items-center justify-between">
+                <span class="text-[11px] text-slate-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-volume-high text-indigo-400"></i> AI 語音播報:
+                </span>
+                <button id="playAudioBtn" onclick="playCurrentAIAudio()" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold shadow transition">
+                    <i class="fa-solid fa-play"></i> 播放語音
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Student list (01 to 23) + Teacher
+        const USER_PRESETS = [
+            { id: 'teacher', number: '👑', name: '👑 班導師 (管理員)', password: 'admin', role: 'teacher', homeGroup: null },
+            { id: 's01', number: '01', name: '01號 李彥霆', password: '1234', role: 'student', homeGroup: 'group1' },
+            { id: 's02', number: '02', name: '02號 施柏任', password: '1234', role: 'student', homeGroup: 'group2' },
+            { id: 's03', number: '03', name: '03號 余桓宇', password: '1234', role: 'student', homeGroup: 'group3' },
+            { id: 's04', number: '04', name: '04號 陳彥廷', password: '1234', role: 'student', homeGroup: 'group4' },
+            { id: 's05', number: '05', name: '05號 林宸睿', password: '1234', role: 'student', homeGroup: 'group5' },
+            { id: 's06', number: '06', name: '06號 尹孮任', password: '1234', role: 'student', homeGroup: 'group1' },
+            { id: 's07', number: '07', name: '07號 許祐愷', password: '1234', role: 'student', homeGroup: 'group2' },
+            { id: 's08', number: '08', name: '08號 黃奕維', password: '1234', role: 'student', homeGroup: 'group3' },
+            { id: 's09', number: '09', name: '09號 毛柏碩', password: '1234', role: 'student', homeGroup: 'group4' },
+            { id: 's10', number: '10', name: '10號 郭軒甫', password: '1234', role: 'student', homeGroup: 'group5' },
+            { id: 's11', number: '11', name: '11號 吳昱宏', password: '1234', role: 'student', homeGroup: 'group1' },
+            { id: 's12', number: '12', name: '12號 賴貞澄', password: '1234', role: 'student', homeGroup: 'group2' },
+            { id: 's13', number: '13', name: '13號 黃真己', password: '1234', role: 'student', homeGroup: 'group3' },
+            { id: 's14', number: '14', name: '14號 陳睿蓁', password: '1234', role: 'student', homeGroup: 'group4' },
+            { id: 's15', number: '15', name: '15號 林岑語', password: '1234', role: 'student', homeGroup: 'group5' },
+            { id: 's16', number: '16', name: '16號 郭芓晴', password: '1234', role: 'student', homeGroup: 'group1' },
+            { id: 's17', number: '17', name: '17號 黃芝筠', password: '1234', role: 'student', homeGroup: 'group2' },
+            { id: 's18', number: '18', name: '18號 劉亭葶', password: '1234', role: 'student', homeGroup: 'group3' },
+            { id: 's19', number: '19', name: '19號 薛安媛', password: '1234', role: 'student', homeGroup: 'group4' },
+            { id: 's20', number: '20', name: '20號 李昕昱', password: '1234', role: 'student', homeGroup: 'group5' },
+            { id: 's21', number: '21', name: '21號 傅琬霓', password: '1234', role: 'student', homeGroup: 'group1' },
+            { id: 's22', number: '22', name: '22號 郭苡薇', password: '1234', role: 'student', homeGroup: 'group2' },
+            { id: 's23', number: '23', name: '23號 鍾依仁', password: '1234', role: 'student', homeGroup: 'group3' }
+        ];
+
+        // Group Companies state (Base price: $100 per share)
+        const stocks = {
+            group1: { id: 'group1', name: '一組科技', price: 100, color: '#6366f1' },
+            group2: { id: 'group2', name: '二組餐飲', price: 100, color: '#10b981' },
+            group3: { id: 'group3', name: '三組娛樂', price: 100, color: '#f59e0b' },
+            group4: { id: 'group4', name: '四組金融', price: 100, color: '#3b82f6' },
+            group5: { id: 'group5', name: '五組百貨', price: 100, color: '#ec4899' }
+        };
+
+        // Classroom Score Adjustment Presets (All values >= $10)
+        const CLASSROOM_PRESETS = [
+            { amount: 25, label: '🏆 課堂競賽冠軍 +$25', color: 'emerald' },
+            { amount: -20, label: '⚠️ 團體作業未交 -$20', color: 'rose' },
+            { amount: 20, label: '💡 創意提案獲選 +$20', color: 'indigo' },
+            { amount: -15, label: '🚨 課堂秩序混亂 -$15', color: 'rose' },
+            { amount: -10, label: '🚨 秩序扣分 -$10', color: 'rose' },
+            { amount: 15, label: '📝 作業全員甲上 +$15', color: 'emerald' },
+            { amount: -12, label: '⏰ 團隊遲到違規 -$12', color: 'amber' },
+            { amount: 15, label: '🧹 整潔評比第一 +$15', color: 'sky' },
+            { amount: -10, label: '🧹 打掃檢查未過 -$10', color: 'amber' },
+            { amount: 12, label: '🌟 團體合作模範 +$12', color: 'purple' },
+            { amount: 10, label: '🙋 踴躍發表提問 +$10', color: 'indigo' }
+        ];
+
+        let studentPortfolios = {};
+        let historyLogs = [];
+        let currentUser = null;
+        let chartInstance = null;
+        let currentAudioBlobUrl = null;
+        let isMarketOpen = true; // Global state for market status
+
+        function toggleMarketStatus() {
+            if (!currentUser || currentUser.role !== 'teacher') return;
+            isMarketOpen = !isMarketOpen;
+            updateMarketStatusUI();
+
+            showNotice(
+                isMarketOpen ? '股市已開盤' : '股市已休市',
+                isMarketOpen ? '班級股市已開放交易！同學現在可以自由買賣股票。' : '班級股市目前已暫停交易，學生端將無法進行買買與賣出。',
+                isMarketOpen ? 'fa-lock-open' : 'fa-lock',
+                isMarketOpen ? 'text-emerald-400' : 'text-rose-400',
+                isMarketOpen ? 'border-emerald-500/30' : 'border-rose-500/30'
+            );
+        }
+
+        function updateMarketStatusUI() {
+            const btn = document.getElementById('marketToggleBtn');
+            const txt = document.getElementById('marketStatusText');
+            if (!btn || !txt) return;
+
+            if (isMarketOpen) {
+                btn.className = "px-3 py-1.5 bg-emerald-600/80 hover:bg-emerald-500 text-white rounded-xl font-medium shadow-md transition flex items-center gap-1.5";
+                txt.textContent = "🟢 股市交易：開盤中";
+            } else {
+                btn.className = "px-3 py-1.5 bg-rose-600/80 hover:bg-rose-500 text-white rounded-xl font-medium shadow-md transition flex items-center gap-1.5";
+                txt.textContent = "🔴 股市交易：休市中";
+            }
+        }
+
+        function showNotice(title, message, iconClass = "fa-circle-exclamation", iconColor = "text-amber-400", borderColor = "border-amber-500/30") {
+            document.getElementById('noticeTitle').textContent = title;
+            document.getElementById('noticeMessage').textContent = message;
+            
+            const iconBox = document.getElementById('noticeIcon');
+            iconBox.className = `w-12 h-12 mx-auto rounded-2xl flex items-center justify-center text-xl bg-slate-900 ${iconColor} border ${borderColor}`;
+            iconBox.innerHTML = `<i class="fa-solid ${iconClass}"></i>`;
+
+            document.getElementById('noticeModal').classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        window.onload = function() {
+            initStudentData();
+            populateUserDropdowns();
+            renderPresets();
+            openLoginModal();
+        };
+
+        function initStudentData() {
+            USER_PRESETS.forEach(user => {
+                if (user.role === 'student') {
+                    studentPortfolios[user.id] = {
+                        cash: 100, // Initial Cash: $100
+                        shares: {
+                            group1: user.homeGroup === 'group1' ? 15 : 0,
+                            group2: user.homeGroup === 'group2' ? 15 : 0,
+                            group3: user.homeGroup === 'group3' ? 15 : 0,
+                            group4: user.homeGroup === 'group4' ? 15 : 0,
+                            group5: user.homeGroup === 'group5' ? 15 : 0
+                        }
+                    };
+                }
+            });
+        }
+
+        function populateUserDropdowns() {
+            const loginSelect = document.getElementById('loginUserSelect');
+            const pwdSelect = document.getElementById('pwdUserSelect');
+            
+            loginSelect.innerHTML = '';
+            pwdSelect.innerHTML = '';
+
+            USER_PRESETS.forEach(u => {
+                const opt1 = document.createElement('option');
+                opt1.value = u.id;
+                opt1.textContent = u.name;
+                loginSelect.appendChild(opt1);
+
+                const opt2 = document.createElement('option');
+                opt2.value = u.id;
+                opt2.textContent = u.name;
+                pwdSelect.appendChild(opt2);
+            });
+        }
+
+        function renderPresets() {
+            const container = document.getElementById('presetContainer');
+            container.innerHTML = '';
+            CLASSROOM_PRESETS.forEach(p => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = `p-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl font-medium text-left transition`;
+                btn.innerHTML = p.label;
+                btn.onclick = () => {
+                    document.getElementById('adjustDeltaInput').value = p.amount;
+                    document.getElementById('adjustReasonInput').value = p.label.replace(/^[^\s]+\s+/, '').replace(/\s*[\+\-]\$\d+$/, '');
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function openLoginModal() {
+            document.getElementById('loginModal').classList.remove('hidden');
+            document.getElementById('loginErrorMsg').classList.add('hidden');
+            document.getElementById('loginPasswordInput').value = '';
+        }
+
+        function togglePasswordVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye';
+            }
+        }
+
+        function handleLogin() {
+            const selectedId = document.getElementById('loginUserSelect').value;
+            const inputPwd = document.getElementById('loginPasswordInput').value;
+            const user = USER_PRESETS.find(u => u.id === selectedId);
+
+            if (user && user.password === inputPwd) {
+                currentUser = user;
+                closeModal('loginModal');
+                updateUserBadge();
+                renderMainLayout();
+            } else {
+                document.getElementById('loginErrorMsg').classList.remove('hidden');
+            }
+        }
+
+        function updateUserBadge() {
+            if (!currentUser) return;
+            document.getElementById('userName').textContent = currentUser.name;
+            document.getElementById('userAvatar').textContent = currentUser.number;
+
+            const teacherControls = document.getElementById('teacherControls');
+            if (currentUser.role === 'teacher') {
+                teacherControls.classList.remove('hidden');
+                updateMarketStatusUI();
+            } else {
+                teacherControls.classList.add('hidden');
+            }
+        }
+
+        function renderMainLayout() {
+            const studentDash = document.getElementById('studentDashboard');
+            const teacherDash = document.getElementById('teacherDashboard');
+
+            if (currentUser.role === 'teacher') {
+                studentDash.classList.add('hidden');
+                teacherDash.classList.remove('hidden');
+                renderTeacherLeaderboard();
+            } else {
+                teacherDash.classList.add('hidden');
+                studentDash.classList.remove('hidden');
+                renderPersonalAssets();
+                renderStocksGrid();
+            }
+        }
+
+        function renderPersonalAssets() {
+            if (!currentUser || currentUser.role !== 'student') return;
+            const portfolio = studentPortfolios[currentUser.id];
+            
+            // Calculate Stock Value
+            let stockVal = 0;
+            Object.keys(stocks).forEach(g => {
+                stockVal += (portfolio.shares[g] || 0) * stocks[g].price;
+            });
+            const totalNetWorth = portfolio.cash + stockVal;
+
+            document.getElementById('netWorthDisplay').innerHTML = `$${totalNetWorth.toLocaleString()} <span class="text-sm font-normal text-slate-400">班幣</span>`;
+            document.getElementById('cashDisplay').textContent = `$${portfolio.cash.toLocaleString()}`;
+            document.getElementById('stockValueDisplay').textContent = `$${stockVal.toLocaleString()}`;
+
+            renderAssetChart(portfolio.cash, portfolio.shares);
+
+            const holdingsList = document.getElementById('holdingsList');
+            holdingsList.innerHTML = '';
+
+            Object.keys(stocks).forEach(gKey => {
+                const count = portfolio.shares[gKey] || 0;
+                if (count > 0) {
+                    const st = stocks[gKey];
+                    const val = count * st.price;
+                    const isHome = (gKey === currentUser.homeGroup);
+
+                    const div = document.createElement('div');
+                    div.className = 'p-2 bg-slate-900/80 rounded-xl border border-slate-800 flex justify-between items-center';
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full" style="background-color: ${st.color}"></span>
+                            <span class="font-bold text-slate-200">${st.name}</span>
+                            ${isHome ? '<span class="text-[10px] px-1.5 py-0.2 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded">自家公司</span>' : ''}
+                        </div>
+                        <div class="text-right">
+                            <span class="font-bold text-slate-100">${count} 股</span>
+                            <span class="text-slate-400 text-[11px] block">$${val.toLocaleString()}</span>
+                        </div>
+                    `;
+                    holdingsList.appendChild(div);
+                }
+            });
+        }
+
+        function renderAssetChart(cash, shares) {
+            const ctx = document.getElementById('assetChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            const labels = ['現金 (Cash)'];
+            const data = [cash];
+            const bgColors = ['#10b981'];
+
+            Object.keys(stocks).forEach(gKey => {
+                const count = shares[gKey] || 0;
+                if (count > 0) {
+                    labels.push(stocks[gKey].name);
+                    data.push(count * stocks[gKey].price);
+                    bgColors.push(stocks[gKey].color);
+                }
+            });
+
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: bgColors,
+                        borderWidth: 2,
+                        borderColor: '#0f172a'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        function renderStocksGrid() {
+            const container = document.getElementById('stocksGrid');
+            container.innerHTML = '';
+
+            Object.keys(stocks).forEach(gKey => {
+                const st = stocks[gKey];
+                const portfolio = studentPortfolios[currentUser.id];
+                const myShareCount = portfolio.shares[gKey] || 0;
+                const isHome = (gKey === currentUser.homeGroup);
+
+                const card = document.createElement('div');
+                card.className = 'glass-card p-4 rounded-xl border border-slate-800 flex flex-col justify-between space-y-3';
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="w-3 h-3 rounded-full" style="background-color: ${st.color}"></span>
+                                <h4 class="font-bold text-slate-100 text-sm">${st.name}</h4>
+                                ${isHome ? '<span class="text-[10px] px-1.5 py-0.5 bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 rounded font-semibold">自家公司</span>' : ''}
+                            </div>
+                            <span class="text-[11px] text-slate-400 mt-0.5 block">目前個人持有: <strong class="text-indigo-300 font-bold">${myShareCount} 股</strong></span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-slate-400 block">每股股價</span>
+                            <span class="text-lg font-extrabold text-amber-300">$${st.price}</span>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <button onclick="buyStock('${gKey}')" class="flex-1 py-1.5 bg-emerald-600/80 hover:bg-emerald-500 text-white rounded-lg font-bold text-xs shadow transition">
+                            <i class="fa-solid fa-plus"></i> 買進 1 股
+                        </button>
+                        <button onclick="sellStock('${gKey}')" class="flex-1 py-1.5 bg-rose-600/80 hover:bg-rose-500 text-white rounded-lg font-bold text-xs shadow transition">
+                            <i class="fa-solid fa-minus"></i> 賣出 1 股
+                        </button>
+                    </div>
+
+                    <button onclick="triggerAIStockAnalyst('${gKey}')" class="w-full py-1 bg-slate-800/80 hover:bg-slate-700 text-indigo-300 border border-slate-700 rounded-lg text-[11px] font-medium transition flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-chart-pie"></i> 公司 AI 研報分析
+                    </button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function buyStock(gKey) {
+            if (!currentUser || currentUser.role !== 'student') return;
+
+            if (!isMarketOpen) {
+                showNotice(
+                    '股市休市中',
+                    '班導師目前已將股市關閉休市，暫時無法下單買進股票。請等待班導師開放交易！',
+                    'fa-lock',
+                    'text-rose-400',
+                    'border-rose-500/30'
+                );
+                return;
+            }
+
+            const portfolio = studentPortfolios[currentUser.id];
+            const price = stocks[gKey].price;
+
+            if (portfolio.cash < price) {
+                showNotice(
+                    '現金餘額不足',
+                    `您目前的現金金額為 $${portfolio.cash} 班幣，無法購買每股 $${price} 班幣的 ${stocks[gKey].name} 股票。請先賣出部分持股變現！`,
+                    'fa-triangle-exclamation',
+                    'text-rose-400',
+                    'border-rose-500/30'
+                );
+                return;
+            }
+
+            portfolio.cash -= price;
+            portfolio.shares[gKey] = (portfolio.shares[gKey] || 0) + 1;
+
+            renderPersonalAssets();
+            renderStocksGrid();
+        }
+
+        function sellStock(gKey) {
+            if (!currentUser || currentUser.role !== 'student') return;
+
+            if (!isMarketOpen) {
+                showNotice(
+                    '股市休市中',
+                    '班導師目前已將股市關閉休市，暫時無法下單賣出股票。請等待班導師開放交易！',
+                    'fa-lock',
+                    'text-rose-400',
+                    'border-rose-500/30'
+                );
+                return;
+            }
+
+            const portfolio = studentPortfolios[currentUser.id];
+            const currentShares = portfolio.shares[gKey] || 0;
+
+            // Check 1: User holds 0 shares of this stock
+            if (currentShares <= 0) {
+                showNotice(
+                    '無法賣出股票',
+                    `您目前未持有【${stocks[gKey].name}】的任何股份！請先透過下單中心買進該股票後方可執行賣出。`,
+                    'fa-circle-xmark',
+                    'text-rose-400',
+                    'border-rose-500/30'
+                );
+                return;
+            }
+
+            // Check 2: Enforce minimum 12 shares retained rule for home company
+            if (gKey === currentUser.homeGroup && currentShares <= 12) {
+                showNotice(
+                    '經營權保障規則限制',
+                    `自家公司【${stocks[gKey].name}】最少必須保留 12 股作為經營權核心保障，目前持有 ${currentShares} 股已達賣出下限！`,
+                    'fa-shield-halved',
+                    'text-amber-400',
+                    'border-amber-500/30'
+                );
+                return;
+            }
+
+            portfolio.cash += stocks[gKey].price;
+            portfolio.shares[gKey] -= 1;
+
+            renderPersonalAssets();
+            renderStocksGrid();
+        }
+
+        function renderTeacherLeaderboard() {
+            const body = document.getElementById('leaderboardBody');
+            body.innerHTML = '';
+
+            const rankingData = USER_PRESETS.filter(u => u.role === 'student').map(u => {
+                const pf = studentPortfolios[u.id];
+                let stockVal = 0;
+                let holdingsText = [];
+
+                Object.keys(stocks).forEach(gKey => {
+                    const cnt = pf.shares[gKey] || 0;
+                    if (cnt > 0) {
+                        stockVal += cnt * stocks[gKey].price;
+                        holdingsText.push(`${stocks[gKey].name}: ${cnt}股`);
+                    }
+                });
+
+                const total = pf.cash + stockVal;
+                return {
+                    user: u,
+                    cash: pf.cash,
+                    stockVal: stockVal,
+                    netWorth: total,
+                    holdings: holdingsText.join(' | ') || '無任何持股'
+                };
+            });
+
+            // Sort descending by Net Worth
+            rankingData.sort((a, b) => b.netWorth - a.netWorth);
+
+            rankingData.forEach((item, index) => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-800/40 transition';
+                
+                let badgeColor = 'bg-slate-800 text-slate-300';
+                if (index === 0) badgeColor = 'bg-amber-500/20 text-amber-300 border border-amber-500/40';
+                else if (index === 1) badgeColor = 'bg-slate-300/20 text-slate-200 border border-slate-300/40';
+                else if (index === 2) badgeColor = 'bg-amber-700/20 text-amber-400 border border-amber-700/40';
+
+                tr.innerHTML = `
+                    <td class="py-3 px-3">
+                        <span class="px-2 py-0.5 rounded-full font-bold text-[11px] ${badgeColor}">${index + 1}</span>
+                    </td>
+                    <td class="py-3 px-3 font-bold text-slate-100">${item.user.name}</td>
+                    <td class="py-3 px-3 text-slate-400">${stocks[item.user.homeGroup].name}</td>
+                    <td class="py-3 px-3 text-right font-semibold text-emerald-400">$${item.cash.toLocaleString()}</td>
+                    <td class="py-3 px-3 text-right font-semibold text-indigo-400">$${item.stockVal.toLocaleString()}</td>
+                    <td class="py-3 px-3 text-right font-extrabold text-amber-300">$${item.netWorth.toLocaleString()}</td>
+                    <td class="py-3 px-3 text-slate-400 text-[11px]">${item.holdings}</td>
+                `;
+                body.appendChild(tr);
+            });
+        }
+
+        function openAdjustModal() {
+            if (!currentUser || currentUser.role !== 'teacher') return;
+            document.getElementById('adjustModal').classList.remove('hidden');
+        }
+
+        function applyStockAdjustment() {
+            const gKey = document.getElementById('adjustStockSelect').value;
+            const delta = parseFloat(document.getElementById('adjustDeltaInput').value);
+            const reason = document.getElementById('adjustReasonInput').value.trim() || '課堂表現調整';
+
+            if (isNaN(delta)) {
+                showNotice('請輸入數值', '請在增減金額欄位填寫有效的數字（例如 15 或 -10）！', 'fa-circle-exclamation');
+                return;
+            }
+
+            stocks[gKey].price = Math.max(10, stocks[gKey].price + delta);
+
+            historyLogs.unshift({
+                time: new Date().toLocaleTimeString(),
+                stockName: stocks[gKey].name,
+                reason: reason,
+                delta: delta,
+                newPrice: stocks[gKey].price
+            });
+
+            closeModal('adjustModal');
+            document.getElementById('adjustDeltaInput').value = '';
+            document.getElementById('adjustReasonInput').value = '';
+
+            renderMainLayout();
+            showNotice('股價變更成功', `已更新【${stocks[gKey].name}】股價！變動金額: ${delta >= 0 ? '+' : ''}$${delta}，最新股價為 $${stocks[gKey].price}`, 'fa-circle-check', 'text-emerald-400', 'border-emerald-500/30');
+        }
+
+        function openPasswordModal() {
+            if (!currentUser || currentUser.role !== 'teacher') return;
+            document.getElementById('passwordModal').classList.remove('hidden');
+        }
+
+        function saveUserPassword() {
+            const targetId = document.getElementById('pwdUserSelect').value;
+            const newPwd = document.getElementById('newPasswordInput').value.trim();
+
+            if (!newPwd) {
+                showNotice('輸入無效', '新密碼不可為空！', 'fa-circle-exclamation');
+                return;
+            }
+
+            const target = USER_PRESETS.find(u => u.id === targetId);
+            if (target) {
+                target.password = newPwd;
+                closeModal('passwordModal');
+                document.getElementById('newPasswordInput').value = '';
+                showNotice('密碼更新完成', `已成功將【${target.name}】的密碼設定為：${newPwd}`, 'fa-key', 'text-purple-400', 'border-purple-500/30');
+            }
+        }
+
+        function openHistoryModal() {
+            const body = document.getElementById('historyTableBody');
+            body.innerHTML = '';
+
+            if (historyLogs.length === 0) {
+                body.innerHTML = `<tr><td colspan="5" class="py-6 text-center text-slate-500">尚無歷史加減分或市場事件紀錄</td></tr>`;
+            } else {
+                historyLogs.forEach(log => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-slate-800/40 transition';
+                    const isPositive = log.delta >= 0;
+                    tr.innerHTML = `
+                        <td class="py-2.5 px-2 text-slate-400">${log.time}</td>
+                        <td class="py-2.5 px-2 font-bold text-slate-200">${log.stockName}</td>
+                        <td class="py-2.5 px-2 text-slate-300">${log.reason}</td>
+                        <td class="py-2.5 px-2 text-right font-bold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}">
+                            ${isPositive ? '+' : ''}$${log.delta}
+                        </td>
+                        <td class="py-2.5 px-2 text-right font-extrabold text-amber-300">$${log.newPrice}</td>
+                    `;
+                    body.appendChild(tr);
+                });
+            }
+
+            document.getElementById('historyModal').classList.remove('hidden');
+        }
+
+        async function callGeminiText(prompt, systemInstruction = "") {
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: systemInstruction ? { parts: [{ text: systemInstruction }] } : undefined
+            };
+
+            const resp = await fetch(apiUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const result = await resp.json();
+            return result.candidates?.[0]?.content?.parts?.[0]?.text || "AI 暫時無法回應，請稍後再試。";
+        }
+
+        async function triggerAIPortfolioAdvisor() {
+            if (!currentUser || currentUser.role !== 'student') return;
+            const portfolio = studentPortfolios[currentUser.id];
+            
+            document.getElementById('aiModalTitle').innerHTML = `<i class="fa-solid fa-wand-magic-sparkles text-indigo-400"></i> AI 個人理財診斷`;
+            document.getElementById('aiModalContent').innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-spinner fa-spin text-2xl text-indigo-400"></i><p class="mt-2 text-slate-400">正在分析您的資產配置與風險分散程度...</p></div>`;
+            document.getElementById('aiAudioContainer').classList.add('hidden');
+            document.getElementById('aiModal').classList.remove('hidden');
+
+            const prompt = `學生 ${currentUser.name} 當前資產為：現金 $${portfolio.cash}，持股為：${JSON.stringify(portfolio.shares)}。請提供 3 句精準親切的繁體中文理財建議與風險診斷，鼓勵其進行適當的分散投資。`;
+            const advice = await callGeminiText(prompt, "你是一位國小/國中金融理財教育專家，用語親切有鼓勵性。");
+
+            document.getElementById('aiModalContent').innerHTML = `<p class="whitespace-pre-line text-slate-200 font-medium">${advice}</p>`;
+            generateTTS(advice);
+        }
+
+        async function triggerAIStockAnalyst(gKey) {
+            const st = stocks[gKey];
+            document.getElementById('aiModalTitle').innerHTML = `<i class="fa-solid fa-chart-line text-amber-400"></i> ${st.name} 公司 AI 研報`;
+            document.getElementById('aiModalContent').innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-spinner fa-spin text-2xl text-amber-400"></i><p class="mt-2 text-slate-400">正在生成 ${st.name} 前瞻分析報告...</p></div>`;
+            document.getElementById('aiAudioContainer').classList.add('hidden');
+            document.getElementById('aiModal').classList.remove('hidden');
+
+            const prompt = `請為班級公司「${st.name}」(目前股價 $${st.price}) 生成簡短的市場研報，包含：1. 產業看點 2. 投資利多利空分析 3. 給同學的投資建議 (100字內，繁體中文)。`;
+            const report = await callGeminiText(prompt, "你是一位風趣的班級股市資深分析師。");
+
+            document.getElementById('aiModalContent').innerHTML = `<p class="whitespace-pre-line text-slate-200 font-medium">${report}</p>`;
+            generateTTS(report);
+        }
+
+        async function triggerAIMarketNews() {
+            if (!currentUser || currentUser.role !== 'teacher') return;
+
+            document.getElementById('aiModalTitle').innerHTML = `<i class="fa-solid fa-robot text-pink-400"></i> AI 突發市場事件快訊`;
+            document.getElementById('aiModalContent').innerHTML = `<div class="text-center py-6"><i class="fa-solid fa-spinner fa-spin text-2xl text-pink-400"></i><p class="mt-2 text-slate-400">Gemini AI 正為班級股市生成突發新聞...</p></div>`;
+            document.getElementById('aiAudioContainer').classList.add('hidden');
+            document.getElementById('aiModal').classList.remove('hidden');
+
+            const keys = Object.keys(stocks);
+            const targetKey = keys[Math.floor(Math.random() * keys.length)];
+            const target = stocks[targetKey];
+
+            const prompt = `請為班級股市公司「${target.name}」隨機生成一個趣味班級新聞事件，並決定股價調升或調降 10 至 25 元。輸出格式為 JSON：{"headline": "新聞標題", "reason": "說明", "delta": 15}`;
+            
+            try {
+                const rawText = await callGeminiText(prompt, "你是一位班級新聞播報員。只輸出標準 JSON 格式。");
+                const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                    const data = JSON.parse(jsonMatch[0]);
+                    const delta = parseInt(data.delta) || 10;
+                    target.price = Math.max(10, target.price + delta);
+
+                    historyLogs.unshift({
+                        time: new Date().toLocaleTimeString(),
+                        stockName: target.name,
+                        reason: `[AI新聞] ${data.headline}`,
+                        delta: delta,
+                        newPrice: target.price
+                    });
+
+                    const newsText = `【${data.headline}】\n${data.reason}\n👉 受此事件影響，${target.name} 股價變動 ${delta >= 0 ? '+' : ''}$${delta} (最新股價: $${target.price})`;
+                    document.getElementById('aiModalContent').innerHTML = `<p class="whitespace-pre-line text-slate-200 font-medium">${newsText}</p>`;
+                    renderMainLayout();
+                    generateTTS(newsText);
+                } else {
+                    document.getElementById('aiModalContent').textContent = "市場數據生成完畢，請重新整理查看最新股價。";
+                }
+            } catch (e) {
+                document.getElementById('aiModalContent').textContent = "AI 突發新聞生成完畢！";
+            }
+        }
+
+        async function generateTTS(textToSay) {
+            try {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+                const payload = {
+                    contents: [{ parts: [{ text: `Say clearly: ${textToSay}` }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: {
+                            voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } }
+                        }
+                    }
+                };
+
+                const resp = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await resp.json();
+                const part = result?.candidates?.[0]?.content?.parts?.[0];
+
+                if (part?.inlineData?.data) {
+                    const base64Audio = part.inlineData.data;
+                    const mimeType = part.inlineData.mimeType || "audio/L16;rate=24000";
+                    const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)?.[1] || "24000", 10);
+                    
+                    const pcmData = base64ToArrayBuffer(base64Audio);
+                    const pcm16 = new Int16Array(pcmData);
+                    const wavBlob = pcmToWav(pcm16, sampleRate);
+                    
+                    if (currentAudioBlobUrl) URL.revokeObjectURL(currentAudioBlobUrl);
+                    currentAudioBlobUrl = URL.createObjectURL(wavBlob);
+
+                    document.getElementById('aiAudioContainer').classList.remove('hidden');
+                }
+            } catch (err) {
+                console.log("TTS Error:", err);
+            }
+        }
+
+        function playCurrentAIAudio() {
+            if (currentAudioBlobUrl) {
+                const audio = new Audio(currentAudioBlobUrl);
+                audio.play();
+            }
+        }
+
+        function base64ToArrayBuffer(base64) {
+            const binaryString = atob(base64);
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function pcmToWav(pcm16Array, sampleRate) {
+            const numChannels = 1;
+            const bytesPerSample = 2;
+            const blockAlign = numChannels * bytesPerSample;
+            const byteRate = sampleRate * blockAlign;
+            const dataSize = pcm16Array.length * bytesPerSample;
+            const buffer = new ArrayBuffer(44 + dataSize);
+            const view = new DataView(buffer);
+
+            const writeString = (offset, string) => {
+                for (let i = 0; i < string.length; i++) {
+                    view.setUint8(offset + i, string.charCodeAt(i));
+                }
+            };
+
+            writeString(0, 'RIFF');
+            view.setUint32(4, 36 + dataSize, true);
+            writeString(8, 'WAVE');
+            writeString(12, 'fmt ');
+            view.setUint32(16, 16, true);
+            view.setUint16(20, 1, true);
+            view.setUint16(22, numChannels, true);
+            view.setUint32(24, sampleRate, true);
+            view.setUint32(28, byteRate, true);
+            view.setUint16(32, blockAlign, true);
+            view.setUint16(34, 16, true);
+            writeString(36, 'data');
+            view.setUint32(40, dataSize, true);
+
+            let offset = 44;
+            for (let i = 0; i < pcm16Array.length; i++, offset += 2) {
+                view.setInt16(offset, pcm16Array[i], true);
+            }
+
+            return new Blob([buffer], { type: 'audio/wav' });
+        }
+    </script>
+</body>
+</html>
